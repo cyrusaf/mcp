@@ -5,28 +5,34 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"sync"
 )
 
 type httpMessage struct {
-	id     string
-	req    json.RawMessage
-	respCh chan json.RawMessage
+	req  json.RawMessage
+	conn *httpConn
+}
+
+type httpConn struct{ ch chan json.RawMessage }
+
+func (c *httpConn) Send(ctx context.Context, resp json.RawMessage) error {
+	select {
+	case c.ch <- resp:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 type httpTransport struct {
-	srv     *http.Server
-	reqCh   chan httpMessage
-	mu      sync.Mutex
-	pending map[string]chan json.RawMessage
+	srv   *http.Server
+	reqCh chan httpMessage
 }
 
 // HTTPTransport returns a Transport that serves JSON-RPC requests over HTTP.
 // It listens on the provided address.
 func HTTPTransport(addr string) Transport {
 	tr := &httpTransport{
-		reqCh:   make(chan httpMessage, 16),
-		pending: make(map[string]chan json.RawMessage),
+		reqCh: make(chan httpMessage, 16),
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", tr.handle)
@@ -41,64 +47,30 @@ func (h *httpTransport) handle(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var tmp struct {
-		ID json.RawMessage `json:"id"`
-	}
-	_ = json.Unmarshal(body, &tmp)
+	conn := &httpConn{ch: make(chan json.RawMessage, 1)}
 	msg := httpMessage{
-		id:     string(tmp.ID),
-		req:    json.RawMessage(body),
-		respCh: make(chan json.RawMessage, 1),
+		req:  json.RawMessage(body),
+		conn: conn,
 	}
 	select {
 	case h.reqCh <- msg:
 	case <-r.Context().Done():
 		return
 	}
-	resp := <-msg.respCh
+	resp := <-conn.ch
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(resp)
 }
 
-func (h *httpTransport) Next(ctx context.Context) (json.RawMessage, error) {
+func (h *httpTransport) Next(ctx context.Context) (Conn, json.RawMessage, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	case msg, ok := <-h.reqCh:
 		if !ok {
-			return nil, io.EOF
+			return nil, nil, io.EOF
 		}
-		if msg.id != "" {
-			h.mu.Lock()
-			h.pending[msg.id] = msg.respCh
-			h.mu.Unlock()
-		}
-		return msg.req, nil
-	}
-}
-
-func (h *httpTransport) Send(ctx context.Context, resp json.RawMessage) error {
-	var tmp struct {
-		ID json.RawMessage `json:"id"`
-	}
-	if err := json.Unmarshal(resp, &tmp); err != nil {
-		return err
-	}
-	id := string(tmp.ID)
-	h.mu.Lock()
-	ch, ok := h.pending[id]
-	if ok {
-		delete(h.pending, id)
-	}
-	h.mu.Unlock()
-	if !ok {
-		return nil
-	}
-	select {
-	case ch <- resp:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+		return msg.conn, msg.req, nil
 	}
 }
 

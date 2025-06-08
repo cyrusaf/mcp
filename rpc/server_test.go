@@ -10,11 +10,23 @@ import (
 	"testing"
 
 	"github.com/cyrusaf/mcp/registry"
+	"github.com/cyrusaf/mcp/transport"
 )
 
 type memTransport struct {
 	in  chan json.RawMessage
 	out chan json.RawMessage
+}
+
+type memConn struct{ out chan json.RawMessage }
+
+func (c *memConn) Send(ctx context.Context, resp json.RawMessage) error {
+	select {
+	case c.out <- resp:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func newMemTransport() *memTransport {
@@ -24,21 +36,16 @@ func newMemTransport() *memTransport {
 	}
 }
 
-func (m *memTransport) Next(ctx context.Context) (json.RawMessage, error) {
+func (m *memTransport) Next(ctx context.Context) (transport.Conn, json.RawMessage, error) {
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	case msg, ok := <-m.in:
 		if !ok {
-			return nil, io.EOF
+			return nil, nil, io.EOF
 		}
-		return msg, nil
+		return &memConn{out: m.out}, msg, nil
 	}
-}
-
-func (m *memTransport) Send(ctx context.Context, resp json.RawMessage) error {
-	m.out <- resp
-	return nil
 }
 
 func (m *memTransport) Close() error { return nil }
