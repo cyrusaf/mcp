@@ -131,11 +131,13 @@ func TestHTTPTransportEndToEnd(t *testing.T) {
 	if out.Error != nil {
 		t.Fatalf("unexpected error: %v", out.Error)
 	}
-	var tools []registry.ToolDesc
-	if b, err := json.Marshal(out.Result); err == nil {
-		_ = json.Unmarshal(b, &tools)
+	var result struct {
+		Tools []registry.ToolDesc `json:"tools"`
 	}
-	if len(tools) != 1 || tools[0].Name != "Echo" {
-		t.Fatalf("unexpected tools: %+v", tools)
+	if b, err := json.Marshal(out.Result); err == nil {
+		_ = json.Unmarshal(b, &result)
+	}
+	if len(result.Tools) != 1 || result.Tools[0].Name != "Echo" {
+		t.Fatalf("unexpected tools: %+v", result.Tools)
 	}
 }

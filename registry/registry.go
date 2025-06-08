@@ -10,17 +10,18 @@ import (
 )
 
 type Registry struct {
-	mu        sync.RWMutex
-	resources []*ResourceDesc
-	tools     []*ToolDesc
+	mu                sync.RWMutex
+	resources         []*ResourceDesc
+	resourceTemplates []*ResourceTemplateDesc
+	tools             []*ToolDesc
 }
 
 func New() *Registry { return &Registry{} }
 
-func RegisterResource[T any](r *Registry, opts ...ResourceOption) *Registry {
+func RegisterResource[T any](r *Registry, name, uri string, handler func(context.Context, string) (T, error), opts ...ResourceOption) *Registry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	desc := &ResourceDesc{}
+	desc := &ResourceDesc{Name: name, URI: uri, Handler: ResourceHandlerFunc(handler)}
 	for _, opt := range opts {
 		opt(desc)
 	}
@@ -36,6 +37,25 @@ func RegisterResource[T any](r *Registry, opts ...ResourceOption) *Registry {
 	return r
 }
 
+func RegisterResourceTemplate[T any](r *Registry, name, uriTemplate string, handler func(context.Context, string) (T, error), opts ...ResourceTemplateOption) *Registry {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	desc := &ResourceTemplateDesc{Name: name, URITemplate: uriTemplate, Handler: ResourceHandlerFunc(handler)}
+	for _, opt := range opts {
+		opt(desc)
+	}
+	var zero T
+	if desc.JSONSchema == nil {
+		if desc.Handler != nil {
+			desc.JSONSchema = schema.ReflectFromType(desc.Handler.Resp())
+		} else {
+			desc.JSONSchema = schema.ReflectFromType(reflect.TypeOf(zero))
+		}
+	}
+	r.resourceTemplates = append(r.resourceTemplates, desc)
+	return r
+}
+
 func RegisterTool[Req any, Resp any](r *Registry, name string, fn func(context.Context, Req) (Resp, error), opts ...ToolOption) *Registry {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -43,7 +63,7 @@ func RegisterTool[Req any, Resp any](r *Registry, name string, fn func(context.C
 	for _, opt := range opts {
 		opt(desc)
 	}
-	desc.InputSchema = schema.ReflectFromType(desc.Handler.Req())
+	desc.InputSchema = *schema.ReflectFromType(desc.Handler.Req())
 	desc.OutputSchema = schema.ReflectFromType(desc.Handler.Resp())
 	r.tools = append(r.tools, desc)
 	return r
@@ -79,6 +99,18 @@ func (r *Registry) Resources() []*ResourceDesc {
 	out := make([]*ResourceDesc, len(r.resources))
 	for i, res := range r.resources {
 		clone := *res
+		out[i] = &clone
+	}
+	return out
+}
+
+func (r *Registry) ResourceTemplates() []*ResourceTemplateDesc {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*ResourceTemplateDesc, len(r.resourceTemplates))
+	for i, res := range r.resourceTemplates {
+		clone := *res
+		clone.Handler = nil
 		out[i] = &clone
 	}
 	return out

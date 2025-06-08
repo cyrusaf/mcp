@@ -11,7 +11,7 @@ import (
 
 // This example exposes the MCP server over HTTP.
 type User struct {
-	ID     int    `mcp:"id,primary"`
+	ID     string `mcp:"id,primary"`
 	Handle string `mcp:"handle,unique"`
 }
 
@@ -24,10 +24,16 @@ func CreateUser(ctx context.Context, in CreateUserReq) (CreateUserResp, error) {
 
 func main() {
 	api := registry.New()
-	registry.RegisterResource[User](api, registry.WithURI("users://{id}"))
+	registry.RegisterResource[User](api, "User", "users://{id}", UserHandler)
+	registry.RegisterResourceTemplate[User](api, "User", "users://{id}", UserHandler)
+
 	registry.RegisterTool(api, "CreateUser", CreateUser, registry.WithDescription("Create a new user account"))
 
 	tr := transport.HTTPTransport(":8080")
 	srv := rpc.NewServer(api, tr)
 	log.Fatal(srv.Run(context.Background()))
+}
+
+func UserHandler(ctx context.Context, id string) (User, error) {
+	return User{ID: id}, nil
 }
