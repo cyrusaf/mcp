@@ -5,8 +5,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/cyrusaf/mcp/registry"
 	"github.com/cyrusaf/mcp/rpc"
@@ -28,12 +26,12 @@ func CreateUser(ctx context.Context, in CreateUserReq) (CreateUserResp, error) {
 
 func main() {
 	api := registry.New()
-	registry.RegisterResource[User](api, "User", "users://{id}", UserHandler)
-	registry.RegisterResourceTemplate[User](api, "User", "users://{id}", UserHandler)
-	registry.RegisterResourceTemplate[string](api, "Webpage", "webpage://{url}", WebpageHandler,
-		registry.WithTemplateDescription("load contents of a webpage by URL"))
+	// registry.RegisterResource(api, "User", "users://{id}", UserHandler)
+	// registry.RegisterResourceTemplate(api, "User", "users://{id}", UserHandler)
+	// registry.RegisterResourceTemplate(api, "Webpage", "webpage://{url}", WebpageHandler,
+	//         registry.WithTemplateDescription("load contents of a webpage by URL"))
 
-	registry.RegisterTool(api, "CreateUser", CreateUser, registry.WithDescription("Create a new user account"))
+	registry.RegisterTool(api, "FetchWebpage", WebpageHandler, registry.WithDescription("Fetch contents of a webpage by URL"))
 
 	tr := transport.HTTPTransport(":8080")
 	srv := rpc.NewServer(api, tr)
@@ -44,20 +42,23 @@ func UserHandler(ctx context.Context, id string) (User, error) {
 	return User{ID: id}, nil
 }
 
-func WebpageHandler(ctx context.Context, u string) (string, error) {
-	u = strings.TrimPrefix(u, "webpage://")
-	decoded, err := url.QueryUnescape(u)
+type WebpageReq struct {
+	URL string `mcp:"url,primary" json:"url"`
+}
+
+type WebpageResp struct {
+	Contents string `mcp:"contents" json:"contents"`
+}
+
+func WebpageHandler(ctx context.Context, req WebpageReq) (*WebpageResp, error) {
+	resp, err := http.Get(req.URL)
 	if err != nil {
-		return "", err
-	}
-	resp, err := http.Get(decoded)
-	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(body), nil
+	return &WebpageResp{Contents: string(body)}, nil
 }

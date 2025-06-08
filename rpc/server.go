@@ -105,6 +105,11 @@ type callParams struct {
 	Arguments json.RawMessage `json:"arguments"`
 }
 
+type toolStructuredResp struct {
+	StructuredContent any `json:"structuredContent,omitempty"`
+	Content           any `json:"content,omitempty"`
+}
+
 func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rpcRequest) {
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
@@ -129,7 +134,14 @@ func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rp
 		s.sendError(ctx, conn, req.ID, &Error{Code: -32000, Message: err.Error()})
 		return
 	}
-	s.send(ctx, conn, req.ID, val)
+
+	var resp toolStructuredResp
+	if tool.OutputSchema != nil {
+		resp.StructuredContent = val
+	} else {
+		resp.Content = val
+	}
+	s.send(ctx, conn, req.ID, resp)
 }
 
 func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, req rpcRequest) {
