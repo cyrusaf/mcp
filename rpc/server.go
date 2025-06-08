@@ -142,12 +142,12 @@ func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, re
 		s.sendError(ctx, conn, req.ID, ErrInvalidParams)
 		return
 	}
-	res := s.reg.FindResource(p.URI)
-	if res == nil || res.Handler == nil {
+	handler := s.reg.FindResource(p.URI)
+	if handler == nil {
 		s.sendError(ctx, conn, req.ID, ErrorMethodNotFound(p.URI))
 		return
 	}
-	val, err := res.Handler.Read(ctx, p.URI)
+	val, err := handler.Read(ctx, p.URI)
 	if err != nil {
 		s.sendError(ctx, conn, req.ID, &Error{Code: -32000, Message: err.Error()})
 		return

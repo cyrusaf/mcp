@@ -127,23 +127,34 @@ func (r *Registry) ResourcesMap() map[string]*ResourceDesc {
 	return out
 }
 
-func (r *Registry) findResource(uri string) *ResourceDesc {
+func (r *Registry) findResource(uri string) rawResourceHandler {
 	for _, res := range r.resources {
 		tmpl := res.URI
 		if tmpl == uri {
-			return res
+			return res.Handler
 		}
 		if i := strings.Index(tmpl, "{"); i > 0 {
 			prefix := tmpl[:i]
 			if strings.HasPrefix(uri, prefix) {
-				return res
+				return res.Handler
 			}
+		}
+	}
+	for _, res := range r.resourceTemplates {
+		tmpl := res.URITemplate
+		if i := strings.Index(tmpl, "{"); i > 0 {
+			prefix := tmpl[:i]
+			if strings.HasPrefix(uri, prefix) {
+				return res.Handler
+			}
+		} else if tmpl == uri {
+			return res.Handler
 		}
 	}
 	return nil
 }
 
-func (r *Registry) FindResource(uri string) *ResourceDesc {
+func (r *Registry) FindResource(uri string) rawResourceHandler {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.findResource(uri)
