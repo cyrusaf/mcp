@@ -133,12 +133,6 @@ func (r *Registry) findResource(uri string) rawResourceHandler {
 		if tmpl == uri {
 			return res.Handler
 		}
-		if i := strings.Index(tmpl, "{"); i > 0 {
-			prefix := tmpl[:i]
-			if strings.HasPrefix(uri, prefix) {
-				return res.Handler
-			}
-		}
 	}
 	for _, res := range r.resourceTemplates {
 		tmpl := res.URITemplate

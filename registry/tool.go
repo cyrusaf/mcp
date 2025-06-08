@@ -13,8 +13,8 @@ var ErrInvalidParams = errors.New("invalid params")
 type ToolDesc struct {
 	Name         string         `json:"name"`
 	Description  string         `json:"description"`
-	InputSchema  schema.Schema  `json:"input_schema"`
-	OutputSchema *schema.Schema `json:"output_schema,omitempty"`
+	InputSchema  schema.Schema  `json:"inputSchema"`
+	OutputSchema *schema.Schema `json:"outputSchema,omitempty"`
 	Handler      rawHandler     `json:"-"`
 }
 
