@@ -41,16 +41,16 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 	switch req.Method {
 	case "initialize":
 		type capabilities struct {
-			Tools     []*registry.ToolDesc     `json:"tools"`
-			Resources []*registry.ResourceDesc `json:"resources"`
+			Tools     map[string]*registry.ToolDesc     `json:"tools"`
+			Resources map[string]*registry.ResourceDesc `json:"resources"`
 		}
 		type initializeResult struct {
 			Capabilities capabilities `json:"capabilities"`
 		}
 		res := initializeResult{
 			Capabilities: capabilities{
-				Tools:     s.reg.Tools(),
-				Resources: s.reg.Resources(),
+				Tools:     s.reg.ToolsMap(),
+				Resources: s.reg.ResourcesMap(),
 			},
 		}
 		s.send(ctx, conn, req.ID, res)

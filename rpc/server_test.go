@@ -220,17 +220,23 @@ func TestInitialize(t *testing.T) {
 	}
 	var out struct {
 		Capabilities struct {
-			Tools     []registry.ToolDesc     `json:"tools"`
-			Resources []registry.ResourceDesc `json:"resources"`
+			Tools     map[string]registry.ToolDesc     `json:"tools"`
+			Resources map[string]registry.ResourceDesc `json:"resources"`
 		} `json:"capabilities"`
 	}
 	if b, err := json.Marshal(resp.Result); err == nil {
 		_ = json.Unmarshal(b, &out)
 	}
-	if len(out.Capabilities.Tools) != 1 || out.Capabilities.Tools[0].Name != "Echo" {
+	if len(out.Capabilities.Tools) != 1 {
 		t.Fatalf("unexpected initialize tools: %+v", out.Capabilities.Tools)
 	}
-	if len(out.Capabilities.Resources) != 1 || out.Capabilities.Resources[0].URI != "res://{id}" {
+	if _, ok := out.Capabilities.Tools["Echo"]; !ok {
+		t.Fatalf("initialize tools missing Echo: %+v", out.Capabilities.Tools)
+	}
+	if len(out.Capabilities.Resources) != 1 {
 		t.Fatalf("unexpected initialize resources: %+v", out.Capabilities.Resources)
+	}
+	if _, ok := out.Capabilities.Resources["res://{id}"]; !ok {
+		t.Fatalf("initialize resources missing res://{id}: %+v", out.Capabilities.Resources)
 	}
 }
