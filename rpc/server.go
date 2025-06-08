@@ -40,7 +40,19 @@ func (s *Server) handle(ctx context.Context, raw json.RawMessage) {
 
 	switch req.Method {
 	case "initialize":
-		res := map[string]any{"capabilities": map[string]any{"tools": map[string]any{}, "resources": map[string]any{}}}
+		type capabilities struct {
+			Tools     []*registry.ToolDesc     `json:"tools"`
+			Resources []*registry.ResourceDesc `json:"resources"`
+		}
+		type initializeResult struct {
+			Capabilities capabilities `json:"capabilities"`
+		}
+		res := initializeResult{
+			Capabilities: capabilities{
+				Tools:     s.reg.Tools(),
+				Resources: s.reg.Resources(),
+			},
+		}
 		s.send(ctx, req.ID, res)
 	case "tools/list":
 		s.send(ctx, req.ID, s.reg.Tools())
