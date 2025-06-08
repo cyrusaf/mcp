@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"net/url"
 	"reflect"
 
 	"github.com/cyrusaf/mcp/registry"
@@ -44,10 +43,21 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 			Tools     map[string]*registry.ToolDesc     `json:"tools"`
 			Resources map[string]*registry.ResourceDesc `json:"resources"`
 		}
+		type serverInfo struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+		}
 		type initializeResult struct {
-			Capabilities capabilities `json:"capabilities"`
+			Capabilities    capabilities `json:"capabilities"`
+			ProtocolVersion string       `json:"protocolVersion"`
+			ServerInfo      serverInfo   `json:"serverInfo"`
 		}
 		res := initializeResult{
+			ProtocolVersion: "2025-03-26",
+			ServerInfo: serverInfo{
+				Name:    "mcp-go-demo",
+				Version: "0.0.1",
+			},
 			Capabilities: capabilities{
 				Tools:     s.reg.ToolsMap(),
 				Resources: s.reg.ResourcesMap(),
@@ -55,9 +65,17 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 		}
 		s.send(ctx, conn, req.ID, res)
 	case "tools/list":
-		s.send(ctx, conn, req.ID, s.reg.Tools())
+		s.send(ctx, conn, req.ID, map[string]any{
+			"tools": s.reg.Tools(),
+		})
 	case "resources/list":
-		s.send(ctx, conn, req.ID, s.reg.Resources())
+		s.send(ctx, conn, req.ID, map[string]any{
+			"resources": s.reg.Resources(),
+		})
+	case "resources/templates/list":
+		s.send(ctx, conn, req.ID, map[string]any{
+			"resourceTemplates": s.reg.ResourceTemplates(),
+		})
 	case "tools/call":
 		s.handleToolCall(ctx, conn, req)
 	case "resources/read":
@@ -70,6 +88,7 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 func (s *Server) send(ctx context.Context, conn transport.Conn, id json.RawMessage, result any) {
 	resp := rpcResponse{JSONRPC: "2.0", ID: id, Result: result}
 	data, _ := json.Marshal(resp)
+	data = append(data, '\n')
 	_ = conn.Send(ctx, data)
 }
 
@@ -115,14 +134,11 @@ func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rp
 
 func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, req rpcRequest) {
 	type params struct {
-		URI string `json:"uri"`
+		URI  string          `json:"uri"`
+		Meta json.RawMessage `json:"_meta,omitempty"`
 	}
 	var p params
 	if err := json.Unmarshal(req.Params, &p); err != nil || p.URI == "" {
-		s.sendError(ctx, conn, req.ID, ErrInvalidParams)
-		return
-	}
-	if _, err := url.Parse(p.URI); err != nil {
 		s.sendError(ctx, conn, req.ID, ErrInvalidParams)
 		return
 	}
@@ -136,5 +152,20 @@ func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, re
 		s.sendError(ctx, conn, req.ID, &Error{Code: -32000, Message: err.Error()})
 		return
 	}
-	s.send(ctx, conn, req.ID, val)
+	valJSON, err := json.Marshal(val)
+	if err != nil {
+		s.sendError(ctx, conn, req.ID, &Error{Code: -32000, Message: err.Error()})
+		return
+	}
+
+	out := map[string]any{
+		"contents": []any{
+			map[string]any{
+				"uri":       p.URI + "#json",
+				"mime_type": "application/json",
+				"text":      string(valJSON),
+			},
+		},
+	}
+	s.send(ctx, conn, req.ID, out)
 }

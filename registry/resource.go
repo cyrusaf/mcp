@@ -8,6 +8,7 @@ import (
 )
 
 type ResourceDesc struct {
+	Name       string             `json:"name"`
 	URI        string             `json:"uri"`
 	JSONSchema *schema.Schema     `json:"json_schema,omitempty"`
 	Handler    rawResourceHandler `json:"-"`
@@ -37,15 +38,6 @@ func ResourceHandlerFunc[Resp any](fn func(context.Context, string) (Resp, error
 
 type ResourceOption func(*ResourceDesc)
 
-func WithURI(uri string) ResourceOption {
-	return func(r *ResourceDesc) { r.URI = uri }
-}
-
 func WithSchema(s *schema.Schema) ResourceOption {
 	return func(r *ResourceDesc) { r.JSONSchema = s }
-}
-
-func WithReadHandler[Resp any](fn func(context.Context, string) (Resp, error)) ResourceOption {
-	h := ResourceHandlerFunc(fn)
-	return func(r *ResourceDesc) { r.Handler = h }
 }

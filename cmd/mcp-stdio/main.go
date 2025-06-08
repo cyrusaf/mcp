@@ -23,7 +23,7 @@ func CreateUser(ctx context.Context, in CreateUserReq) (CreateUserResp, error) {
 
 func main() {
 	api := registry.New()
-	registry.RegisterResource[User](api, registry.WithURI("users://{id}"))
+	registry.RegisterResource[User](api, "User", "users://{id}", func(context.Context, string) (User, error) { return User{}, nil })
 	registry.RegisterTool(api, "CreateUser", CreateUser, registry.WithDescription("Create a new user account"))
 	srv := rpc.NewServer(api, transport.StdioTransport())
 	log.Fatal(srv.Run(context.Background()))
