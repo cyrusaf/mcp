@@ -8,9 +8,12 @@ import (
 	"os"
 )
 
-type Transport interface {
-	Next(ctx context.Context) (json.RawMessage, error)
+type Conn interface {
 	Send(ctx context.Context, resp json.RawMessage) error
+}
+
+type Transport interface {
+	Next(ctx context.Context) (Conn, json.RawMessage, error)
 	Close() error
 }
 
@@ -19,21 +22,23 @@ type stdioTransport struct {
 	out io.Writer
 }
 
+type stdioConn struct{ out io.Writer }
+
+func (c *stdioConn) Send(ctx context.Context, resp json.RawMessage) error {
+	_, err := c.out.Write(append(resp, '\n'))
+	return err
+}
+
 func StdioTransport() Transport {
 	return &stdioTransport{in: bufio.NewReader(os.Stdin), out: os.Stdout}
 }
 
-func (s *stdioTransport) Next(ctx context.Context) (json.RawMessage, error) {
+func (s *stdioTransport) Next(ctx context.Context) (Conn, json.RawMessage, error) {
 	line, err := s.in.ReadBytes('\n')
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return json.RawMessage(line), nil
-}
-
-func (s *stdioTransport) Send(ctx context.Context, resp json.RawMessage) error {
-	_, err := s.out.Write(append(resp, '\n'))
-	return err
+	return &stdioConn{out: s.out}, json.RawMessage(line), nil
 }
 
 func (s *stdioTransport) Close() error { return nil }
