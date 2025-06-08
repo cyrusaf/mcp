@@ -194,3 +194,36 @@ func TestResourceRead(t *testing.T) {
 		t.Fatalf("unexpected result: %+v", out)
 	}
 }
+
+func TestInitialize(t *testing.T) {
+	_, tr, cancel := startTestServer(t)
+	defer cancel()
+
+	req := rpcRequest{JSONRPC: "2.0", ID: json.RawMessage(`6`), Method: "initialize"}
+	data, _ := json.Marshal(req)
+	tr.in <- data
+
+	respBytes := <-tr.out
+	var resp rpcResponse
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error)
+	}
+	var out struct {
+		Capabilities struct {
+			Tools     []registry.ToolDesc     `json:"tools"`
+			Resources []registry.ResourceDesc `json:"resources"`
+		} `json:"capabilities"`
+	}
+	if b, err := json.Marshal(resp.Result); err == nil {
+		_ = json.Unmarshal(b, &out)
+	}
+	if len(out.Capabilities.Tools) != 1 || out.Capabilities.Tools[0].Name != "Echo" {
+		t.Fatalf("unexpected initialize tools: %+v", out.Capabilities.Tools)
+	}
+	if len(out.Capabilities.Resources) != 1 || out.Capabilities.Resources[0].URI != "res://{id}" {
+		t.Fatalf("unexpected initialize resources: %+v", out.Capabilities.Resources)
+	}
+}
