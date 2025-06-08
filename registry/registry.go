@@ -61,6 +61,18 @@ func (r *Registry) Tools() []*ToolDesc {
 	return out
 }
 
+func (r *Registry) ToolsMap() map[string]*ToolDesc {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make(map[string]*ToolDesc, len(r.tools))
+	for _, t := range r.tools {
+		clone := *t
+		clone.Handler = nil
+		out[t.Name] = &clone
+	}
+	return out
+}
+
 func (r *Registry) Resources() []*ResourceDesc {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -68,6 +80,17 @@ func (r *Registry) Resources() []*ResourceDesc {
 	for i, res := range r.resources {
 		clone := *res
 		out[i] = &clone
+	}
+	return out
+}
+
+func (r *Registry) ResourcesMap() map[string]*ResourceDesc {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make(map[string]*ResourceDesc, len(r.resources))
+	for _, res := range r.resources {
+		clone := *res
+		out[res.URI] = &clone
 	}
 	return out
 }
