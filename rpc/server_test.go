@@ -62,7 +62,8 @@ func startTestServer(t *testing.T) (*Server, *memTransport, context.CancelFunc) 
 		return struct{ ID int }{ID: id}, nil
 	}
 	registry.RegisterResource[struct{ ID int }](reg, "Res", "res://{id}", handler)
-	registry.RegisterResourceTemplate[struct{ ID int }](reg, "Res", "res://{id}", handler)
+	registry.RegisterResourceTemplate[struct{ ID int }](reg, "Res", "res://{id}", handler,
+		registry.WithTemplateDescription("resource by id"))
 	registry.RegisterTool(reg, "Echo", func(ctx context.Context, in struct{ Msg string }) (struct{ Msg string }, error) {
 		return in, nil
 	}, registry.WithDescription("echo a message"))
@@ -203,6 +204,34 @@ func TestToolsDescription(t *testing.T) {
 	}
 	if len(out.Tools) != 1 || out.Tools[0].Description != "echo a message" {
 		t.Fatalf("unexpected tools: %+v", out.Tools)
+	}
+}
+
+func TestResourceTemplateDescription(t *testing.T) {
+	_, tr, cancel := startTestServer(t)
+	defer cancel()
+
+	req := rpcRequest{JSONRPC: "2.0", ID: json.RawMessage(`8`), Method: "resources/templates/list"}
+	data, _ := json.Marshal(req)
+	tr.in <- data
+
+	respBytes := <-tr.out
+	var resp rpcResponse
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %v", resp.Error)
+	}
+	var out struct {
+		ResourceTemplates []registry.ResourceTemplateDesc `json:"resourceTemplates"`
+	}
+	if b, err := json.Marshal(resp.Result); err == nil {
+		_ = json.Unmarshal(b, &out)
+	}
+	if len(out.ResourceTemplates) != 1 || out.ResourceTemplates[0].Description == nil ||
+		*out.ResourceTemplates[0].Description != "resource by id" {
+		t.Fatalf("unexpected resource templates: %+v", out.ResourceTemplates)
 	}
 }
 

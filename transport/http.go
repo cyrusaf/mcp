@@ -43,11 +43,8 @@ func HTTPTransport(addr string) Transport {
 
 func (h *httpTransport) handle(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet && r.Header.Get("Accept") == "text/event-stream" {
-		w.Header().Set("Content-Type", "text/event-stream")
-		if f, ok := w.(http.Flusher); ok {
-			f.Flush()
-		}
-		<-r.Context().Done()
+		w.Header().Set("Allow", http.MethodPost)
+		http.Error(w, "streaming not allowed on this endpoint", http.StatusMethodNotAllowed)
 		return
 	}
 
