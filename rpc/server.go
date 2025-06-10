@@ -39,30 +39,11 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 
 	switch req.Method {
 	case "initialize":
-		type capabilities struct {
-			Tools     map[string]*registry.ToolDesc     `json:"tools"`
-			Resources map[string]*registry.ResourceDesc `json:"resources"`
-		}
-		type serverInfo struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		}
-		type initializeResult struct {
-			Capabilities    capabilities `json:"capabilities"`
-			ProtocolVersion string       `json:"protocolVersion"`
-			ServerInfo      serverInfo   `json:"serverInfo"`
-		}
-		res := initializeResult{
-			ProtocolVersion: "2025-03-26",
-			ServerInfo: serverInfo{
-				Name:    "mcp-go-demo",
-				Version: "0.0.1",
-			},
-			Capabilities: capabilities{
-				Tools:     s.reg.ToolsMap(),
-				Resources: s.reg.ResourcesMap(),
-			},
-		}
+		var res InitializeResult
+		res.ProtocolVersion = "2025-03-26"
+		res.ServerInfo.Name = "cyrusaf/mcp"
+		res.ServerInfo.Version = "0.1.0"
+		// all capability flags default to false
 		s.send(ctx, conn, req.ID, res)
 	case "tools/list":
 		s.send(ctx, conn, req.ID, map[string]any{

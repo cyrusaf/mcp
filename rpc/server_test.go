@@ -293,25 +293,20 @@ func TestInitialize(t *testing.T) {
 	if resp.Error != nil {
 		t.Fatalf("unexpected error: %v", resp.Error)
 	}
-	var out struct {
-		Capabilities struct {
-			Tools     map[string]registry.ToolDesc     `json:"tools"`
-			Resources map[string]registry.ResourceDesc `json:"resources"`
-		} `json:"capabilities"`
-	}
+	var out InitializeResult
 	if b, err := json.Marshal(resp.Result); err == nil {
 		_ = json.Unmarshal(b, &out)
 	}
-	if len(out.Capabilities.Tools) != 1 {
-		t.Fatalf("unexpected initialize tools: %+v", out.Capabilities.Tools)
+	if out.ProtocolVersion != "2025-03-26" {
+		t.Fatalf("unexpected protocol version: %s", out.ProtocolVersion)
 	}
-	if _, ok := out.Capabilities.Tools["Echo"]; !ok {
-		t.Fatalf("initialize tools missing Echo: %+v", out.Capabilities.Tools)
+	if out.ServerInfo.Name != "cyrusaf/mcp" || out.ServerInfo.Version != "0.1.0" {
+		t.Fatalf("unexpected server info: %+v", out.ServerInfo)
 	}
-	if len(out.Capabilities.Resources) != 1 {
-		t.Fatalf("unexpected initialize resources: %+v", out.Capabilities.Resources)
-	}
-	if _, ok := out.Capabilities.Resources["res://{id}"]; !ok {
-		t.Fatalf("initialize resources missing res://{id}: %+v", out.Capabilities.Resources)
+	if out.Capabilities.Tools.ListChanged != false ||
+		out.Capabilities.Resources.ListChanged != false ||
+		out.Capabilities.Resources.Subscribe != false ||
+		out.Capabilities.Prompts.Offered != false {
+		t.Fatalf("unexpected capabilities: %+v", out.Capabilities)
 	}
 }
