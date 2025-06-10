@@ -39,26 +39,7 @@ func (s *Server) handle(ctx context.Context, conn transport.Conn, raw json.RawMe
 
 	switch req.Method {
 	case "initialize":
-		type initializeResult struct {
-			ProtocolVersion string `json:"protocolVersion"`
-			ServerInfo      struct {
-				Name    string `json:"name"`
-				Version string `json:"version"`
-			} `json:"serverInfo"`
-			Capabilities struct {
-				Tools struct {
-					ListChanged bool `json:"listChanged"`
-				} `json:"tools"`
-				Resources struct {
-					ListChanged bool `json:"listChanged"`
-					Subscribe   bool `json:"subscribe"`
-				} `json:"resources"`
-				Prompts struct {
-					Offered bool `json:"offered"`
-				} `json:"prompts"`
-			} `json:"capabilities"`
-		}
-		res := initializeResult{}
+		var res InitializeResult
 		res.ProtocolVersion = "2025-03-26"
 		res.ServerInfo.Name = "cyrusaf/mcp"
 		res.ServerInfo.Version = "0.1.0"

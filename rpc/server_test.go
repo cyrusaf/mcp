@@ -293,25 +293,7 @@ func TestInitialize(t *testing.T) {
 	if resp.Error != nil {
 		t.Fatalf("unexpected error: %v", resp.Error)
 	}
-	var out struct {
-		ProtocolVersion string `json:"protocolVersion"`
-		ServerInfo      struct {
-			Name    string `json:"name"`
-			Version string `json:"version"`
-		} `json:"serverInfo"`
-		Capabilities struct {
-			Tools struct {
-				ListChanged bool `json:"listChanged"`
-			} `json:"tools"`
-			Resources struct {
-				ListChanged bool `json:"listChanged"`
-				Subscribe   bool `json:"subscribe"`
-			} `json:"resources"`
-			Prompts struct {
-				Offered bool `json:"offered"`
-			} `json:"prompts"`
-		} `json:"capabilities"`
-	}
+	var out InitializeResult
 	if b, err := json.Marshal(resp.Result); err == nil {
 		_ = json.Unmarshal(b, &out)
 	}
