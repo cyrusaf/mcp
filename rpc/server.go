@@ -134,11 +134,7 @@ func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rp
 }
 
 func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, req rpcRequest) {
-	type params struct {
-		URI  string          `json:"uri"`
-		Meta json.RawMessage `json:"_meta,omitempty"`
-	}
-	var p params
+	var p ResourceReadParams
 	if err := json.Unmarshal(req.Params, &p); err != nil || p.URI == "" {
 		s.sendError(ctx, conn, req.ID, ErrInvalidParams)
 		return
@@ -159,12 +155,12 @@ func (s *Server) handleResourceRead(ctx context.Context, conn transport.Conn, re
 		return
 	}
 
-	out := map[string]any{
-		"contents": []any{
-			map[string]any{
-				"uri":       p.URI + "#json",
-				"mime_type": "application/json",
-				"text":      string(valJSON),
+	out := ResourceReadResult{
+		Contents: []ResourceContent{
+			{
+				URI:      p.URI,
+				MimeType: "application/json",
+				Text:     string(valJSON),
 			},
 		},
 	}

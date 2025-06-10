@@ -245,9 +245,7 @@ func TestResourceRead(t *testing.T) {
 	_, tr, cancel := startTestServer(t)
 	defer cancel()
 
-	params := struct {
-		URI string `json:"uri"`
-	}{URI: "res://42"}
+	params := ResourceReadParams{URI: "res://42"}
 	pbytes, _ := json.Marshal(params)
 	req := rpcRequest{JSONRPC: "2.0", ID: json.RawMessage(`5`), Method: "resources/read", Params: pbytes}
 	data, _ := json.Marshal(req)
@@ -261,13 +259,7 @@ func TestResourceRead(t *testing.T) {
 	if resp.Error != nil {
 		t.Fatalf("unexpected error: %v", resp.Error)
 	}
-	var out struct {
-		Contents []struct {
-			URI      string `json:"uri"`
-			MimeType string `json:"mime_type"`
-			Text     string `json:"text"`
-		} `json:"contents"`
-	}
+	var out ResourceReadResult
 	if b, err := json.Marshal(resp.Result); err == nil {
 		_ = json.Unmarshal(b, &out)
 	}
