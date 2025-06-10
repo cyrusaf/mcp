@@ -121,10 +121,14 @@ func TestToolsCall(t *testing.T) {
 	b, _ := json.Marshal(resp.Result)
 	var out struct {
 		StructuredContent struct{ Msg string } `json:"structuredContent"`
+		Content           []ContentItem        `json:"content"`
 	}
 	_ = json.Unmarshal(b, &out)
 	if out.StructuredContent.Msg != "hi" {
 		t.Fatalf("unexpected result: %+v", out.StructuredContent)
+	}
+	if len(out.Content) != 1 || out.Content[0].Type != "text" || out.Content[0].Data["text"] != "{\"Msg\":\"hi\"}" {
+		t.Fatalf("unexpected content: %+v", out.Content)
 	}
 }
 

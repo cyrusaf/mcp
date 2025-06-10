@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"reflect"
 
 	"github.com/cyrusaf/mcp/registry"
@@ -87,8 +88,8 @@ type callParams struct {
 }
 
 type toolStructuredResp struct {
-	StructuredContent any `json:"structuredContent,omitempty"`
-	Content           any `json:"content,omitempty"`
+	StructuredContent any           `json:"structuredContent,omitempty"`
+	Content           []ContentItem `json:"content,omitempty"`
 }
 
 func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rpcRequest) {
@@ -119,8 +120,15 @@ func (s *Server) handleToolCall(ctx context.Context, conn transport.Conn, req rp
 	var resp toolStructuredResp
 	if tool.OutputSchema != nil {
 		resp.StructuredContent = val
+		if b, err := json.Marshal(val); err == nil {
+			resp.Content = []ContentItem{
+				NewTextContent(string(b)),
+			}
+		}
 	} else {
-		resp.Content = val
+		resp.Content = []ContentItem{
+			{Type: "text", Data: map[string]any{"text": fmt.Sprint(val)}},
+		}
 	}
 	s.send(ctx, conn, req.ID, resp)
 }
